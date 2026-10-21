@@ -2,23 +2,35 @@
 
 A small, mobile-first Japanese listening app that loads mature Anki cards, can filter them using known words from Jiten, and supports sentence-audio replay or browser speech synthesis.
 
-## Run locally
+## Use the published app
 
-Serve this folder from a local web server such as VS Code Live Server. For example, open `index.html` at `http://127.0.0.1:5500`.
-
-The app connects to AnkiConnect at `http://127.0.0.1:8765` by default. In AnkiConnect's add-on configuration, allow the exact origin serving the app in `webCorsOriginList`, then restart Anki. For local development that may be:
+The app is published at **<https://mattias.github.io/nihongo-listening-practice/>**. When using this URL, add its exact origin to AnkiConnect's `webCorsOriginList`:
 
 ```json
-"webCorsOriginList": ["http://127.0.0.1:5500"]
+{
+  "webCorsOriginList": ["https://mattias.github.io"]
+}
 ```
 
-`localhost` and `127.0.0.1` are different origins. For mobile use, enter the desktop computer's LAN address in the app settings and allow the app's origin in AnkiConnect.
+The origin is the scheme and host only; do not include the app path or trailing slash. Restart Anki after changing AnkiConnect's configuration. The app uses `http://127.0.0.1:8765` as its default AnkiConnect endpoint, which works when the browser and Anki are on the same computer.
+
+To use the hosted app on a phone, set the AnkiConnect endpoint in Settings to the computer's LAN address, such as `http://192.168.1.50:8765`, and allow the hosted origin above in AnkiConnect. The phone and computer must be on the same network. Some browsers block requests from an HTTPS page to an HTTP LAN address as mixed content; if that happens, use a local HTTPS proxy or open a locally served copy of the app over HTTP instead.
+
+## Run locally for development
+
+Serve this folder from a local web server such as VS Code Live Server. Its origin is often `http://127.0.0.1:5500`; the exact origin shown in the browser address bar must be allowed separately in AnkiConnect:
+
+```json
+{
+  "webCorsOriginList": ["http://127.0.0.1:5500"]
+}
+```
+
+`localhost` and `127.0.0.1` are different origins.
 
 ## Publish with GitHub Pages
 
-The repository's Pages workflow deploys this static app whenever a commit is pushed to `main`. In the repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions**.
-
-When serving from GitHub Pages, add the deployed site origin (for example, `https://OWNER.github.io`) to AnkiConnect's `webCorsOriginList`. The browser still needs network access to the computer running Anki.
+The repository's Pages workflow deploys this static app whenever a commit is pushed to `main`. The site is already configured to deploy from GitHub Actions.
 
 ## Settings
 
