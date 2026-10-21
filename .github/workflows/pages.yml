@@ -28,13 +28,7 @@ jobs:
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: |
-            index.html
-            style.css
-            app.js
-            manifest.webmanifest
-            sw.js
-            icon.svg
+          path: .
       - name: Deploy site
         id: deployment
         uses: actions/deploy-pages@v4
