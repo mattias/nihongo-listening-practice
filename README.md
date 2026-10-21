@@ -37,5 +37,6 @@ The repository's Pages workflow deploys this static app whenever a commit is pus
 - Choose the matching Anki note type preset and check its field mappings.
 - To filter by known words, import the `KnownWord.json` vocabulary export from Surasura in Settings. Only entries marked `KNOWN` are used. Jiten's API does not allow browser CORS requests, so the static GitHub Pages app cannot call it directly; the imported word list is stored in this browser.
 - The app fetches 25 random mature cards at a time and requests another batch when five remain.
+- Choosing **Crystal clear** snoozes that sentence for 10 days, then it becomes eligible again. **Never show again** keeps it blacklisted until the blacklist is cleared.
 - Playback repeat, delay, and speed settings are saved in the browser.
 - The app shell and imported known-word list can be cached for offline use; AnkiConnect still requires network access.

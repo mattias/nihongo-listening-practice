@@ -19,9 +19,11 @@ const DEFAULT_SETTINGS = {
 };
 const SETTINGS_KEY = 'listening_practice_settings';
 const BLACKLIST_KEY = 'anki_blacklist';
+const SNOOZED_SENTENCES_KEY = 'listening_practice_snoozed_sentences';
 const JITEN_WORDS_KEY = 'listening_practice_jiten_known_words';
 const CARD_BATCH_SIZE = 25;
 const CARD_BATCH_THRESHOLD = 5;
+const SENTENCE_SNOOZE_DURATION = 10 * 24 * 60 * 60 * 1000;
 const DEMO_CARDS = [
   { id: 'demo-1', sentence: '今日はいい天気ですね。', furigana: '<ruby>今日<rt>きょう</rt></ruby>はいい<ruby>天気<rt>てんき</rt></ruby>ですね。', translation: 'The weather is nice today, isn’t it?', audio: '' },
   { id: 'demo-2', sentence: '駅まで歩いて十分かかります。', furigana: '<ruby>駅<rt>えき</rt></ruby>まで<ruby>歩<rt>ある</rt></ruby>いて<ruby>十分<rt>じゅっぷん</rt></ruby>かかります。', translation: 'It takes ten minutes to walk to the station.', audio: '' },
@@ -147,12 +149,27 @@ function setConnection(connected, label = connected ? 'AnkiConnect Connected' : 
   elements.connectionLabel.textContent = label;
 }
 
+function getSnoozedSentences() {
+  try {
+    const entries = JSON.parse(localStorage.getItem(SNOOZED_SENTENCES_KEY) || '[]');
+    if (!Array.isArray(entries)) throw new Error('Saved snoozed sentences are not a list.');
+    return new Map(entries
+      .filter((entry) => entry && typeof entry.sentence === 'string' && Number.isFinite(entry.until))
+      .map((entry) => [entry.sentence, entry.until]));
+  } catch (error) {
+    console.error('Could not read snoozed sentences.', error);
+    return new Map();
+  }
+}
+
 function blacklistHas(card) {
   const blacklist = getBlacklist();
   return blacklist.has(String(card.id)) || blacklist.has(card.sentence.trim());
 }
 
 function normalizeCards(cardInfo) {
+  const snoozedSentences = getSnoozedSentences();
+  const now = Date.now();
   return cardInfo.map((info) => {
     const values = info.fields || {};
     const fieldValue = (fieldName) => fieldName && values[fieldName] ? values[fieldName].value || '' : '';
@@ -166,7 +183,9 @@ function normalizeCards(cardInfo) {
       translation: stripHtml(fieldValue(settings.fields.translation)).trim(),
       audio: fieldValue(settings.fields.audio)
     };
-  }).filter((card) => card.sentence && !blacklistHas(card));
+  }).filter((card) => card.sentence
+    && !blacklistHas(card)
+    && (snoozedSentences.get(card.sentence) || 0) <= now);
 }
 
 function stripHtml(value) {
@@ -327,7 +346,9 @@ async function initialize() {
       elements.sessionNote.textContent = `AnkiConnect replied, but cards could not be loaded: ${error.message}`;
       showToast(`AnkiConnect is reachable, but card loading failed: ${error.message}`);
       ankiCardQueue = [];
-      cards = DEMO_CARDS.filter((card) => !blacklistHas(card));
+      const snoozedSentences = getSnoozedSentences();
+      cards = DEMO_CARDS.filter((card) => !blacklistHas(card)
+        && (snoozedSentences.get(card.sentence) || 0) <= Date.now());
       if (cards.length) await showNextCard();
       else renderEmptyState('No demo sentences remain. Clear the blacklist in browser storage to restart.');
       return;
@@ -340,7 +361,9 @@ async function initialize() {
     elements.sessionNote.textContent = 'AnkiConnect unavailable — using sample sentences';
     showToast(`${error.message} Check the endpoint and AnkiConnect CORS settings.`);
     ankiCardQueue = [];
-    cards = DEMO_CARDS.filter((card) => !blacklistHas(card));
+    const snoozedSentences = getSnoozedSentences();
+    cards = DEMO_CARDS.filter((card) => !blacklistHas(card)
+      && (snoozedSentences.get(card.sentence) || 0) <= Date.now());
     if (cards.length) await showNextCard();
     else renderEmptyState('No demo sentences remain. Clear the blacklist in browser storage to restart.');
   }
@@ -695,7 +718,26 @@ document.querySelector('#clearJitenButton').addEventListener('click', async () =
 document.querySelector('#toggleTextButton').addEventListener('click', () => setRevealed(!isRevealed));
 document.querySelector('#replayButton').addEventListener('click', () => playCurrentAudio());
 document.querySelector('#skipButton').addEventListener('click', () => showNextCard());
-document.querySelector('#understoodButton').addEventListener('click', () => showNextCard());
+document.querySelector('#understoodButton').addEventListener('click', () => {
+  if (!currentCard) return;
+  const snoozedSentences = getSnoozedSentences();
+  const sentence = currentCard.sentence.trim();
+  snoozedSentences.set(sentence, Date.now() + SENTENCE_SNOOZE_DURATION);
+  const now = Date.now();
+  try {
+    localStorage.setItem(SNOOZED_SENTENCES_KEY, JSON.stringify(
+      [...snoozedSentences]
+        .filter(([, until]) => until > now)
+        .map(([savedSentence, until]) => ({ sentence: savedSentence, until }))
+    ));
+  } catch (error) {
+    showToast(`Could not snooze this sentence: ${error.message}`);
+    return;
+  }
+  cards = cards.filter((card) => card.sentence.trim() !== sentence);
+  showToast('Sentence snoozed for 10 days.');
+  showNextCard();
+});
 document.querySelector('#blacklistButton').addEventListener('click', () => {
   if (!currentCard) return;
   const blacklist = getBlacklist();
