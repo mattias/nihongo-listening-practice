@@ -355,7 +355,7 @@ function renderEmptyState(message = 'No sentences available. Update your setting
   currentCard = null;
   elements.cardIndex.textContent = 'COMPLETE';
   elements.cardTag.textContent = 'SESSION COMPLETE';
-  elements.sentenceText.textContent = '練習終了';
+  elements.sentenceText.textContent = 'Session complete';
   elements.furiganaText.textContent = '';
   elements.translationText.textContent = message;
   setRevealed(true);
@@ -445,7 +445,7 @@ function setRevealed(revealed) {
   elements.sentenceContent.classList.toggle('is-hidden', !revealed);
   elements.sentenceContent.setAttribute('aria-hidden', String(!revealed));
   elements.revealHint.hidden = revealed;
-  document.querySelector('#toggleTextButton').textContent = revealed ? '🙈 Dölj text' : '👁️ Visa text';
+  document.querySelector('#toggleTextButton').textContent = revealed ? '🙈 Hide text' : '👁️ Show text';
 }
 
 function extractSound(value) {
