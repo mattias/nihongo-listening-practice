@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS = {
 };
 const SETTINGS_KEY = 'listening_practice_settings';
 const BLACKLIST_KEY = 'anki_blacklist';
+const JITEN_WORDS_KEY = 'listening_practice_jiten_known_words';
 const CARD_BATCH_SIZE = 25;
 const CARD_BATCH_THRESHOLD = 5;
 const DEMO_CARDS = [
@@ -74,17 +75,26 @@ function loadSettings() {
     if (isLegacySettings && saved.preset === 'kiku') {
       Object.assign(fields, PRESETS.kiku);
     }
-    return {
+    const migratedSettings = {
       ...DEFAULT_SETTINGS,
       ...saved,
       settingsVersion: DEFAULT_SETTINGS.settingsVersion,
       jitenEnabled: isLegacySettings ? true : saved.jitenEnabled ?? DEFAULT_SETTINGS.jitenEnabled,
       jitenEndpoint,
+      jitenAuthKey: '',
       fields,
       autoRepeat: saved.autoRepeat ?? DEFAULT_SETTINGS.autoRepeat,
       repeatDelay: boundedNumber(saved.repeatDelay, 0, 5, DEFAULT_SETTINGS.repeatDelay),
       playbackSpeed: boundedNumber(saved.playbackSpeed, 0.6, 1.4, DEFAULT_SETTINGS.playbackSpeed)
     };
+    if (saved.jitenAuthKey || isLegacySettings) {
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(migratedSettings));
+      } catch (error) {
+        console.error('Could not update saved settings.', error);
+      }
+    }
+    return migratedSettings;
   } catch (error) {
     console.error('Could not read saved settings.', error);
     return structuredClone(DEFAULT_SETTINGS);
@@ -165,45 +175,37 @@ function stripHtml(value) {
   return template.content.textContent || '';
 }
 
-async function fetchJitenWords() {
-  if (!settings.jitenEnabled) return null;
-  if (!settings.jitenEndpoint) throw jitenError('Enter a Jiten API endpoint or turn off known-word filtering.');
-  if (!settings.jitenAuthKey) {
-    showToast('Jiten filtering is enabled. Add your Jiten API key in Settings to filter by known words.');
-    return null;
-  }
-  const headers = { Accept: 'application/json' };
-  if (settings.jitenAuthKey) headers.Authorization = `ApiKey ${settings.jitenAuthKey}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  let response;
-  try {
-    response = await fetch(settings.jitenEndpoint, { headers, signal: controller.signal });
-  } catch (error) {
-    throw jitenError(error.name === 'AbortError' ? 'Jiten API request timed out.' : `Could not reach Jiten: ${error.message}`);
-  } finally {
-    clearTimeout(timeout);
-  }
-  if (!response.ok) throw jitenError(`Jiten returned HTTP ${response.status}.`);
-  let payload;
-  try {
-    payload = await response.json();
-  } catch {
-    throw jitenError('Jiten did not return valid JSON.');
-  }
+function normalizeKnownWords(payload) {
   const words = Array.isArray(payload)
     ? payload
     : payload && typeof payload === 'object'
-      ? payload.words || payload.data
+      ? payload.words || payload.data || payload.knownWords
       : null;
-  if (!Array.isArray(words)) throw jitenError('Jiten response must be an array of vocabulary cards or contain a words/data array.');
-  return new Set(words.map((entry) => {
-    if (typeof entry === 'string') return entry;
+  if (!Array.isArray(words)) {
+    throw new Error('JSON must contain a vocabulary array, such as the words array in Surasura KnownWord.json.');
+  }
+  return [...new Set(words.map((entry) => {
+    if (typeof entry === 'string') return entry.trim();
     if (!entry || typeof entry !== 'object') return null;
     if ('wordText' in entry && (!Number.isFinite(Number(entry.state)) || Number(entry.state) < 5)) return null;
     if ('knownStatus' in entry && entry.knownStatus !== 'KNOWN') return null;
-    return entry.wordText || entry.dictForm || entry.word || entry.expression || null;
-  }).filter(Boolean));
+    return String(entry.wordText || entry.dictForm || entry.word || entry.expression || '').trim() || null;
+  }).filter(Boolean))];
+}
+
+async function fetchJitenWords() {
+  if (!settings.jitenEnabled) return null;
+  let words;
+  try {
+    words = JSON.parse(localStorage.getItem(JITEN_WORDS_KEY) || 'null');
+  } catch (error) {
+    throw jitenError(`Could not read imported Jiten vocabulary: ${error.message}`);
+  }
+  if (!Array.isArray(words) || words.length === 0) {
+    showToast('Import a Jiten KnownWord.json file in Settings to filter by known words.');
+    return null;
+  }
+  return new Set(words);
 }
 
 function jitenError(message) {
@@ -570,12 +572,49 @@ function populateSettingsForm() {
   document.querySelector('#audioField').value = settings.fields.audio;
   document.querySelector('#ankiEndpoint').value = settings.ankiEndpoint;
   document.querySelector('#jitenEnabled').checked = settings.jitenEnabled;
-  document.querySelector('#jitenEndpoint').value = settings.jitenEndpoint;
-  document.querySelector('#jitenAuthKey').value = settings.jitenAuthKey;
+  document.querySelector('#jitenFile').value = '';
+  updateJitenImportStatus();
   document.querySelector('#autoRepeat').checked = settings.autoRepeat;
   document.querySelector('#repeatDelay').value = settings.repeatDelay;
   document.querySelector('#playbackSpeed').value = settings.playbackSpeed;
   updatePlaybackLabels();
+}
+
+function updateJitenImportStatus() {
+  const status = document.querySelector('#jitenImportStatus');
+  const clearButton = document.querySelector('#clearJitenButton');
+  let importedWords = [];
+  try {
+    const stored = JSON.parse(localStorage.getItem(JITEN_WORDS_KEY) || '[]');
+    if (Array.isArray(stored)) importedWords = stored;
+  } catch (error) {
+    console.error('Could not read imported Jiten vocabulary status.', error);
+  }
+  status.textContent = importedWords.length
+    ? `${importedWords.length.toLocaleString()} known words imported.`
+    : 'No Jiten vocabulary imported.';
+  clearButton.hidden = importedWords.length === 0;
+}
+
+async function importJitenFile(file) {
+  if (!file) return;
+  try {
+    const payload = JSON.parse(await file.text());
+    const words = normalizeKnownWords(payload);
+    if (!words.length) throw new Error('No known words found. Surasura exports should include entries marked KNOWN.');
+    localStorage.setItem(JITEN_WORDS_KEY, JSON.stringify(words));
+    updateJitenImportStatus();
+    settings.jitenEnabled = true;
+    document.querySelector('#jitenEnabled').checked = true;
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    showToast(`Imported ${words.length.toLocaleString()} known Jiten words. Reloading cards.`);
+    elements.settingsDialog.close();
+    await initialize();
+  } catch (error) {
+    showToast(`Could not import Jiten vocabulary: ${error.message}`);
+  } finally {
+    document.querySelector('#jitenFile').value = '';
+  }
 }
 
 function updatePlaybackLabels() {
@@ -616,8 +655,8 @@ function saveSettings(event) {
     },
     ankiEndpoint: String(form.get('ankiEndpoint') || '').trim().replace(/\/$/, ''),
     jitenEnabled: form.has('jitenEnabled'),
-    jitenEndpoint: String(form.get('jitenEndpoint') || '').trim(),
-    jitenAuthKey: String(form.get('jitenAuthKey') || '').trim()
+    jitenEndpoint: settings.jitenEndpoint,
+    jitenAuthKey: ''
   };
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -640,6 +679,19 @@ document.querySelector('#settingsButton').addEventListener('click', () => elemen
 document.querySelector('#closeSettingsButton').addEventListener('click', () => elements.settingsDialog.close());
 document.querySelector('#cancelSettingsButton').addEventListener('click', () => elements.settingsDialog.close());
 elements.settingsForm.addEventListener('submit', saveSettings);
+document.querySelector('#jitenFile').addEventListener('change', (event) => importJitenFile(event.target.files[0]));
+document.querySelector('#clearJitenButton').addEventListener('click', async () => {
+  try {
+    localStorage.removeItem(JITEN_WORDS_KEY);
+    updateJitenImportStatus();
+    knownWords = null;
+    showToast('Imported Jiten vocabulary removed.');
+    elements.settingsDialog.close();
+    await initialize();
+  } catch (error) {
+    showToast(`Could not remove imported Jiten vocabulary: ${error.message}`);
+  }
+});
 document.querySelector('#toggleTextButton').addEventListener('click', () => setRevealed(!isRevealed));
 document.querySelector('#replayButton').addEventListener('click', () => playCurrentAudio());
 document.querySelector('#skipButton').addEventListener('click', () => showNextCard());

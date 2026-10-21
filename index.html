@@ -125,14 +125,14 @@
           </label>
         </div>
         <label class="field">
-          <span>Jiten API endpoint</span>
-          <input id="jitenEndpoint" name="jitenEndpoint" type="url" placeholder="https://api.jiten.moe/api/user/vocabulary/cards">
+          <span>Import Jiten vocabulary JSON</span>
+          <input id="jitenFile" type="file" accept=".json,application/json">
         </label>
-        <label class="field">
-          <span>Jiten auth key <small>(optional)</small></span>
-          <input id="jitenAuthKey" name="jitenAuthKey" type="password" autocomplete="off">
-        </label>
-        <p class="settings-help">Uses Jiten's vocabulary cards API and <code>ApiKey</code> authorization. Only cards with state 5 or higher count as known, matching <a href="https://github.com/SonicSandbox/surasura/blob/main/app/jiten_converter.py" target="_blank" rel="noreferrer">Surasura's Jiten import</a>. Get your key at <a href="https://jiten.moe/settings/api" target="_blank" rel="noreferrer">Jiten API settings</a>.</p>
+        <div class="import-status-row">
+          <p class="import-status" id="jitenImportStatus">No Jiten vocabulary imported.</p>
+          <button class="button button-quiet clear-import-button" id="clearJitenButton" type="button" hidden>Remove import</button>
+        </div>
+        <p class="settings-help">Import <code>KnownWord.json</code> exported by <a href="https://github.com/SonicSandbox/surasura/blob/main/app/jiten_converter.py" target="_blank" rel="noreferrer">Surasura</a>. Only entries marked <code>KNOWN</code> (Jiten card state 5 or higher) are used. The list is saved in this browser. GitHub Pages cannot call Jiten's API directly because the API does not allow browser CORS requests.</p>
       </div>
       <div class="dialog-footer">
         <button class="button button-secondary" id="cancelSettingsButton" type="button">Cancel</button>

@@ -35,7 +35,7 @@ The repository's Pages workflow deploys this static app whenever a commit is pus
 ## Settings
 
 - Choose the matching Anki note type preset and check its field mappings.
-- Add a Jiten API key to filter to words with a known card state. The app uses Jiten's vocabulary cards API; states 5 and higher are treated as known.
+- To filter by known words, import the `KnownWord.json` vocabulary export from Surasura in Settings. Only entries marked `KNOWN` are used. Jiten's API does not allow browser CORS requests, so the static GitHub Pages app cannot call it directly; the imported word list is stored in this browser.
 - The app fetches 25 random mature cards at a time and requests another batch when five remain.
 - Playback repeat, delay, and speed settings are saved in the browser.
-- The app shell can be cached for offline use; Anki and Jiten integrations still require network access.
+- The app shell and imported known-word list can be cached for offline use; AnkiConnect still requires network access.

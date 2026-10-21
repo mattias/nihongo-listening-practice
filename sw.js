@@ -1,4 +1,4 @@
-const CACHE_NAME = 'listening-practice-v6';
+const CACHE_NAME = 'listening-practice-v7';
 const APP_SHELL = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (event) => {
