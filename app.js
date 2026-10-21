@@ -430,7 +430,7 @@ function sanitizeFurigana(value) {
   template.innerHTML = value;
   template.content.querySelectorAll('*').forEach((node) => {
     if (!['RUBY', 'RT', 'RP'].includes(node.tagName)) {
-      node.replaceWith(document.createTextNode(node.textContent || ''));
+      node.replaceWith(...node.childNodes);
       return;
     }
     [...node.attributes].forEach((attribute) => node.removeAttribute(attribute.name));
