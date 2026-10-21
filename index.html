@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="Focused Japanese listening practice with your Anki cards.">
+  <title>Listening Practice — 日本語</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.webmanifest">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Listening Practice home">
+        <span class="brand-mark" aria-hidden="true">聴</span>
+        <span><strong>Listening</strong><span class="brand-subtitle">日本語 practice</span></span>
+      </a>
+      <div class="topbar-actions">
+        <div id="connectionStatus" class="status-badge" role="status" aria-live="polite">
+          <span class="status-dot"></span><span id="connectionLabel">Checking connection</span>
+        </div>
+        <button class="icon-button" id="settingsButton" type="button" aria-label="Open settings" title="Settings">⚙</button>
+      </div>
+    </header>
+    <p class="connection-help" id="connectionHelp" hidden></p>
+
+    <section class="practice-layout" aria-label="Listening practice">
+      <div class="eyebrow"><span class="eyebrow-line"></span> LISTEN FIRST <span class="eyebrow-line"></span></div>
+      <div class="session-note" id="sessionNote">Preparing your listening session…</div>
+
+      <article class="practice-card" id="practiceCard" aria-live="polite">
+        <div class="card-topline">
+          <span class="card-index" id="cardIndex">READY</span>
+          <span class="card-tag" id="cardTag">AUDIO PRACTICE</span>
+        </div>
+
+        <div class="audio-stage">
+          <div class="waveform" id="waveform" aria-label="Audio playing">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <p class="audio-caption" id="audioCaption">Listen carefully</p>
+          <div class="playback-settings" aria-label="Playback settings">
+            <label class="repeat-toggle" for="autoRepeat">
+              <input id="autoRepeat" type="checkbox" checked>
+              <span>Repeat</span>
+            </label>
+            <label class="quick-setting">
+              <span>Delay <output id="repeatDelayValue" for="repeatDelay">1 s</output></span>
+              <input id="repeatDelay" type="range" min="0" max="5" step="0.25" value="1">
+            </label>
+            <label class="quick-setting">
+              <span>Speed <output id="playbackSpeedValue" for="playbackSpeed">0.9×</output></span>
+              <input id="playbackSpeed" type="range" min="0.6" max="1.4" step="0.05" value="0.9">
+            </label>
+          </div>
+          <audio id="audioPlayer" preload="none"></audio>
+        </div>
+
+        <div class="text-reveal is-hidden" id="sentenceContent" aria-hidden="true">
+          <div class="japanese-line" id="sentenceText" lang="ja"></div>
+          <div class="furigana-line" id="furiganaText" lang="ja"></div>
+          <p class="translation" id="translationText"></p>
+        </div>
+        <div class="reveal-hint" id="revealHint">Text is hidden. Trust your ears.</div>
+
+        <div class="card-divider"></div>
+        <div class="controls">
+          <button class="button button-secondary" id="toggleTextButton" type="button">👁️ Visa text</button>
+          <button class="button button-secondary replay-button" id="replayButton" type="button">⟲ Spela igen</button>
+        </div>
+        <div class="decision-controls">
+          <button class="button button-quiet" id="skipButton" type="button">⏩ Hoppa över</button>
+          <button class="button button-primary" id="understoodButton" type="button">✨ Kristallklart</button>
+        </div>
+        <button class="never-button" id="blacklistButton" type="button">🚫 Visa aldrig mer</button>
+      </article>
+
+      <footer class="page-footer">
+        <span>One sentence at a time.</span>
+        <span class="footer-dot">·</span>
+        <span id="sourceLabel">Offline demo</span>
+      </footer>
+    </section>
+  </main>
+
+  <dialog class="settings-dialog" id="settingsDialog" aria-labelledby="settingsTitle">
+    <form id="settingsForm" method="dialog">
+      <div class="dialog-header">
+        <div>
+          <span class="dialog-kicker">PERSONALIZE YOUR SESSION</span>
+          <h1 id="settingsTitle">Settings</h1>
+        </div>
+        <button class="icon-button close-button" id="closeSettingsButton" type="button" aria-label="Close settings">×</button>
+      </div>
+      <div class="settings-content">
+        <label class="field">
+          <span>Note type preset</span>
+          <select id="presetSelect" name="preset">
+            <option value="kiku">Kiku</option>
+            <option value="lapis">Lapis</option>
+            <option value="senren">Senren</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        <fieldset class="field-mappings">
+          <legend>Card field mappings</legend>
+          <label class="field"><span>Sentence</span><input id="sentenceField" name="sentenceField" required></label>
+          <label class="field"><span>Furigana</span><input id="furiganaField" name="furiganaField"></label>
+          <label class="field"><span>Translation</span><input id="translationField" name="translationField"></label>
+          <label class="field"><span>Sentence audio</span><input id="audioField" name="audioField"></label>
+        </fieldset>
+        <label class="field">
+          <span>AnkiConnect endpoint</span>
+          <input id="ankiEndpoint" name="ankiEndpoint" type="url" placeholder="http://127.0.0.1:8765" required>
+        </label>
+        <div class="field">
+          <label class="switch-row" for="jitenEnabled">
+            <span><strong>Filter by known words</strong><small>Only show sentences made from known vocabulary</small></span>
+            <input id="jitenEnabled" name="jitenEnabled" type="checkbox">
+          </label>
+        </div>
+        <label class="field">
+          <span>Jiten API endpoint</span>
+          <input id="jitenEndpoint" name="jitenEndpoint" type="url" placeholder="https://api.jiten.moe/api/user/vocabulary/cards">
+        </label>
+        <label class="field">
+          <span>Jiten auth key <small>(optional)</small></span>
+          <input id="jitenAuthKey" name="jitenAuthKey" type="password" autocomplete="off">
+        </label>
+        <p class="settings-help">Uses Jiten's vocabulary cards API and <code>ApiKey</code> authorization. Only cards with state 5 or higher count as known, matching <a href="https://github.com/SonicSandbox/surasura/blob/main/app/jiten_converter.py" target="_blank" rel="noreferrer">Surasura's Jiten import</a>. Get your key at <a href="https://jiten.moe/settings/api" target="_blank" rel="noreferrer">Jiten API settings</a>.</p>
+      </div>
+      <div class="dialog-footer">
+        <button class="button button-secondary" id="cancelSettingsButton" type="button">Cancel</button>
+        <button class="button button-primary" type="submit">Save settings</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js" defer></script>
+</body>
+</html>
